@@ -61,12 +61,29 @@ namespace DataverseClient
             Console.WriteLine("Retrieved account name: {0}, postal code: {1}",
                 retrievedAccount["name"], retrievedAccount["address2_postalcode"]);
 
+            GetRecords(serviceClient);
+
             // Pause program execution before resource cleanup.
             Console.WriteLine("Press any key to undo environment data changes.");
             Console.ReadKey();
 
             // In Dataverse, delete the created account, and then dispose the connection.
             serviceClient.Delete(account.LogicalName, account.Id);
+        }
+
+        static void GetRecords(ServiceClient serviceClient)
+        {
+            var accountsCollection = serviceClient.RetrieveMultiple(new QueryExpression("account")
+            {
+                ColumnSet = new ColumnSet("name"),
+                TopCount = 10
+            });
+
+            Console.WriteLine("Records:");
+            Console.WriteLine(string.Join("\n",
+                accountsCollection.Entities
+                    .Select(x => $"{x.GetAttributeValue<string>("name")}, {x.Id}")
+                    ));
         }
 
         static void Main(string[] args)
