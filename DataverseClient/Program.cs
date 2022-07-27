@@ -1,98 +1,86 @@
 ﻿// Copyright (c) 2022 YA-androidapp(https://github.com/YA-androidapp) All rights reserved.
 
 
-using System;
-using Newtonsoft.Json.Linq;
-using System.Net.Http;
+using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Extensions.Configuration;
+using Microsoft.PowerPlatform.Dataverse.Client;
+using Microsoft.Xrm.Sdk.Query;
+using Microsoft.Xrm.Sdk;
 
 namespace DataverseClient
 {
     internal class Program
     {
-        private static string connectionString = "";
+        /// <summary>
+        /// Contains the application's configuration settings. 
+        /// </summary>
+        IConfiguration Configuration { get; }
 
-        static void Init()
+        /// <summary>
+        /// Constructor. Loads the application configuration settings from a JSON file.
+        /// </summary>
+        Program()
         {
-            var configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json")
+            // Load the app's configuration settings from the JSON file.
+            Configuration = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .Build();
-
-            connectionString = configuration["ConnectionStrings:MyEnv"];
         }
 
-        static void WhoAmI()
+        static void WhoAmI(ServiceClient serviceClient)
         {
-            try
-            {
-                using (HttpClient client = SampleHelpers.GetHttpClient(connectionString, SampleHelpers.clientId, SampleHelpers.redirectUrl))
-                {
-                    // Use the WhoAmI function
-                    var response = client.GetAsync("WhoAmI").Result;
-
-                    if (response.IsSuccessStatusCode)
-                    {
-                        //Get the response content and parse it.
-                        JObject body = JObject.Parse(response.Content.ReadAsStringAsync().Result);
-                        Guid userId = (Guid)body["UserId"];
-                        Console.WriteLine("Your UserId is {0}", userId);
-                    }
-                    else
-                    {
-                        Console.WriteLine("The request failed with a status of '{0}'",
-                                    response.ReasonPhrase);
-                    }
-                    Console.WriteLine("Press any key to exit.");
-                    Console.ReadLine();
-                }
-            }
-            catch (Exception ex)
-            {
-                SampleHelpers.DisplayException(ex);
-                Console.WriteLine("Press any key to exit.");
-                Console.ReadLine();
-            }
+            // Send a WhoAmI message request to the Organization service to obtain  
+            // information about the logged on user.
+            WhoAmIResponse resp = (WhoAmIResponse)serviceClient.Execute(new WhoAmIRequest());
+            Console.WriteLine("User ID is {0}.", resp.UserId);
         }
 
-        static void GetRecord()
+        static void GetRecord(ServiceClient serviceClient)
         {
-            try
-            {
-                using (HttpClient client = SampleHelpers.GetHttpClient(connectionString, SampleHelpers.clientId, SampleHelpers.redirectUrl))
-                {
-                    // Use the WhoAmI function
-                    var response = client.GetAsync("systemusers(cffe9069-b13d-eb11-bf68-000d3a51d5f0)").Result;
+            // Create an in-memory account named Nightmare Coffee.
+            Entity account = new("account");
+            account["name"] = "Nightmare Coffee";
 
-                    if (response.IsSuccessStatusCode)
-                    {
-                        //Get the response content and parse it.
-                        JObject body = JObject.Parse(response.Content.ReadAsStringAsync().Result);
-                        var fullName = body["fullname"];
-                        Console.WriteLine("Your FullName is {0}", fullName);
-                    }
-                    else
-                    {
-                        Console.WriteLine("The request failed with a status of '{0}'",
-                                    response.ReasonPhrase);
-                    }
-                    Console.WriteLine("Press any key to exit.");
-                    Console.ReadLine();
-                }
-            }
-            catch (Exception ex)
-            {
-                SampleHelpers.DisplayException(ex);
-                Console.WriteLine("Press any key to exit.");
-                Console.ReadLine();
-            }
+            // Now create that account in Dataverse. Note that the Dataverse
+            // created account ID is being stored in the in-memory account
+            // for later use with the Update() call.
+            account.Id = serviceClient.Create(account);
+
+            // In Dataverse, update the account's name and set it's postal code.
+            account["name"] = "Fourth Coffee";
+            account["address2_postalcode"] = "98052";
+            serviceClient.Update(account);
+
+            // Retrieve the updated account from Dataverse.
+            Entity retrievedAccount = serviceClient.Retrieve(
+                entityName: account.LogicalName,
+                id: account.Id,
+                columnSet: new ColumnSet("name", "address2_postalcode")
+            );
+
+            Console.WriteLine("Retrieved account name: {0}, postal code: {1}",
+                retrievedAccount["name"], retrievedAccount["address2_postalcode"]);
+
+            // Pause program execution before resource cleanup.
+            Console.WriteLine("Press any key to undo environment data changes.");
+            Console.ReadKey();
+
+            // In Dataverse, delete the created account, and then dispose the connection.
+            serviceClient.Delete(account.LogicalName, account.Id);
         }
 
         static void Main(string[] args)
         {
-            Init();
+            Program app = new();
 
-            // WhoAmI();
-            GetRecord();
+            // Create a Dataverse service client using the default connection string.
+            var connectionString = app.Configuration.GetConnectionString("MyEnv");
+            ServiceClient serviceClient = new(connectionString);
+
+            WhoAmI(serviceClient);
+            GetRecord(serviceClient);
+
+            serviceClient.Dispose();
         }
     }
 }
