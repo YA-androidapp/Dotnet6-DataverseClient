@@ -1,0 +1,5 @@
+{
+    "ConnectionStrings": {
+        "MyEnv": "Url=https://CONTOSOENV.crmNUM.dynamics.com;Username=USERNAME@CONTOSO.onmicrosoft.com;Password=YOURPASSWORD;"
+    }
+}
