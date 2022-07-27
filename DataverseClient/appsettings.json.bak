@@ -1,5 +1,5 @@
 {
     "ConnectionStrings": {
-        "MyEnv": "Url=https://CONTOSOENV.crmNUM.dynamics.com;Username=USERNAME@CONTOSO.onmicrosoft.com;Password=YOURPASSWORD;"
+        "MyEnv": "AuthType=OAuth;Url=https://CONTOSOENV.crmNUM.dynamics.com;Username=USERNAME@CONTOSO.onmicrosoft.com;Password=YOURPASSWORD;RedirectUri=http://localhost;AppId=********-****-****-****-************;LoginPrompt=Auto"
     }
 }
